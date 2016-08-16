@@ -26,6 +26,9 @@
     <environment names="Development">
         <script src="~/lib/jquery/dist/jquery.js"></script>
         <script src="~/lib/bootstrap/dist/js/bootstrap.js"></script>
+        <script src="~/lib/adapterjs/publish/adapter.min.js"></script>
+        <script src="~/lib/kurento-client/js/kurento-client.js"></script>
+        <script src="~/lib/kurento-utils/js/kurento-utils.js"></script>
         <script src="~/js/kurentoWrapper.js" asp-append-version="true"></script>
     </environment>
     <environment names="Staging,Production">
@@ -37,9 +40,18 @@
                 asp-fallback-src="~/lib/bootstrap/dist/js/bootstrap.min.js"
                 asp-fallback-test="window.jQuery && window.jQuery.fn && window.jQuery.fn.modal">
         </script>
+        <script src="~/lib/adapterjs/publish/adapter.min.js"></script>
+        <script src="~/lib/kurento-client/js/kurento-client.js"></script>
+        <script src="~/lib/kurento-utils/js/kurento-utils.js"></script>
         <script src="~/js/kurentoWrapper.js" asp-append-version="true"></script>
     </environment>
 
     @RenderSection("scripts", required: false)
+
+    <script type="text/javascript">
+      $(function () {
+        startTheApp();
+      });
+    </script>
 </body>
 </html>

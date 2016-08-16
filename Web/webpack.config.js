@@ -8,6 +8,14 @@ module.exports = {
     path: path.join(__dirname, 'wwwroot/js'),
     filename: 'kurentoWrapper.js'
   },
+  resolve: {
+    extensions: ['', '.webpack.js', '.web.js', '.ts', '.tsx', '.js']
+  },
+  module: {
+    loaders: [
+      { test: /\.tsx?$/, loader: 'ts-loader' }
+    ]
+  },
   devServer: {
     contentBase: ".",
     host: "localhost",

@@ -1,11 +1,25 @@
 ﻿@{
     ViewData["Title"] = "Kurento demonstration";
- }
+}
 
 <div class="container-fluid">
   <div class="col-xs-12">
     <h1>Kurento AV Demonstration</h1>
-    <strong>Trololo</strong>
+    
+    <div class="col-xs-5 well">
+      <h2>Local Video</h2>
+
+      <div>
+        <video id="localVideo"></video>
+      </div>
+    </div>
+
+    <div class="col-xs-5 col-xs-offset-2 well">
+      <h2>Remote Video</h2>
+      <div>
+        <video id="remoteVideo"></video>
+      </div>
+    </div>
 
   </div>
 </div>

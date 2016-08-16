@@ -1,12 +1,13 @@
 {
-  "name": "asp.net",
-  "private": true,
-  "dependencies": {
-    "bootstrap": "3.3.6",
-    "jquery": "2.2.0",
-    "jquery-validation": "1.14.0",
-    "jquery-validation-unobtrusive": "3.2.6",
-    "kurento-client": "6.5.0",
-    "kurento-utils": "6.5.0"
-  }
+	"name": "asp.net",
+	"private": true,
+	"dependencies": {
+		"bootstrap": "3.3.6",
+		"jquery": "2.2.0",
+		"jquery-validation": "1.14.0",
+		"jquery-validation-unobtrusive": "3.2.6",
+		"kurento-client": "6.5.0",
+		"kurento-utils": "6.5.0",
+		"adapterjs": "0.13.3"
+	}
 }

@@ -8,9 +8,13 @@ namespace Web.Controllers
 {
     public class HomeController : Controller
     {
-        public IActionResult Index()
+        public IActionResult Index(string uid, string csid, string pid)
         {
-            return View();
+            return View(new {
+                uid = uid,
+                csid = csid,
+                pid = pid
+            });
         }
     }
 }
