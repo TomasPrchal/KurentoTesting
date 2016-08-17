@@ -4,12 +4,14 @@ function startTheApp() {
   console.log(_id);
 
   load();
-}
 
-//http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-client-js/index.html
-let kurentoClient: any = window["kurentoClient"];
-//http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-utils-js/index.html
-let kurentoUtils: any = window["kurentoUtils"];
+  let eCfg: ElementsCfg = {
+    local: document.getElementById('localVideo'),
+    remote: document.getElementById('remoteVideo')
+  }
+  let weTalkWebRtc = new WeTalkWebRtc(window["kurentoClient"], window["kurentoUtils"], eCfg);
+  console.log(weTalkWebRtc);
+}
 
 let _id = {
   uid: "578c0bd270d1cdba23f5f16d",
@@ -17,11 +19,79 @@ let _id = {
   pid: "57a14a8598702f3da8bb80f3"
 }
 
+interface ConnectionCfg {
+  wsUri?: string;
+  fileUri?: string;
+  iceServers?: string[];
+}
+
+interface ElementsCfg {
+  local: any;
+  remote: any;
+}
+
+class WeTalkWebRtc {
+  kurentoClient: any;
+  kurentoUtils: any;
+
+  sessionId: string;
+
+  connectionConfig: ConnectionCfg;
+
+  webRtCPeer: any;
+  pipeline: any;
+
+  videoElements: ElementsCfg;
+
+  constructor(kC, kU, vE: ElementsCfg, connectionConfig?: ConnectionCfg) {
+    this.kurentoClient = kC;
+    this.kurentoUtils = kU;
+    this.videoElements = vE;
+
+    if (connectionConfig) {
+      this.connectionConfig = connectionConfig;
+    } else {
+      this.connectionConfig = {
+        wsUri: 'wss://kurento.applicloud.com:8433/kurento',
+        fileUri: "file:///tmp/tomasRecord.webm",
+        iceServers: null
+      };
+    }
+  }
+
+  startConnection(sessionId: string) {
+    this.sessionId = sessionId;
+
+  }
+
+  endConnection(sessionId: string) {
+  }
+
+  blockLocalAudio() {
+  }
+
+  blockLocalVideo() {
+  }
+
+  muteRemoteAudio() {
+  }
+
+  getStats() {
+  }
+
+
+}
+//http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-client-js/index.html
+let kurentoClient: any = window["kurentoClient"];
+//http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-utils-js/index.html
+let kurentoUtils: any = window["kurentoUtils"];
+
+
 var args = {
-  ws_uri: 'wss://kurento.applicloud.com:8433/kurento',
+  wsUri: 'wss://kurento.applicloud.com:8433/kurento',
   //ws_uri: 'wss://nope.com/kurento',
-  file_uri: 'file:///tmp/tomasRecord.webm',
-  ice_servers: null
+  fileUri: 'file:///tmp/tomasRecord.webm',
+  iceServers: null
 };
 
 function setIceCandidateCallbacks(webRtcPeer, webRtcEp, onerror) {
@@ -44,8 +114,6 @@ function setIceCandidateCallbacks(webRtcPeer, webRtcEp, onerror) {
 
 
 function load() {
-  console = console;
-
   var webRtcPeer;
   var pipeline;
 
@@ -59,10 +127,10 @@ function load() {
   };
 
 
-  if (args.ice_servers) {
-    console.log("Use ICE servers: " + args.ice_servers);
+  if (args.iceServers) {
+    console.log("Use ICE servers: " + args.iceServers);
     options.configuration = {
-      iceServers: JSON.parse(args.ice_servers)
+      iceServers: JSON.parse(args.iceServers)
     };
   } else {
     console.log("Use freeice")
@@ -83,7 +151,7 @@ function load() {
 
     //http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-client-js/module-kurentoClient.KurentoClient.html
     // Creates connection to Kurento Media Server
-    kurentoClient(args.ws_uri, function (error, client) {
+    kurentoClient(args.wsUri, function (error, client) {
       if (error) return onError(error);
 
       // http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-client-js/module-core.MediaPipeline.html
@@ -95,7 +163,7 @@ function load() {
 
         var elements =
           [
-            { type: 'RecorderEndpoint', params: { uri: args.file_uri } },
+            { type: 'RecorderEndpoint', params: { uri: args.fileUri } },
             { type: 'WebRtcEndpoint', params: {} }
           ]
 
@@ -116,10 +184,20 @@ function load() {
           });
           webRtc.gatherCandidates(onError);
 
-          webRtc.connect(webRtc, function (error) {
+          client.connect(webRtc, webRtc, recorder, function (error) {
             if (error) return onError(error);
 
             console.log("Loopback established");
+
+            recorder.record(function (error) {
+              if (error) return onError(error);
+
+              console.log("Recording");
+              setTimeout(() => {
+                recorder.stop();
+                console.log("Recording stopped");
+              }, 60000);
+            });
           });
         });
 
