@@ -5,12 +5,12 @@ function startTheApp() {
 
   load();
 
-  let eCfg: ElementsCfg = {
-    local: document.getElementById('localVideo'),
-    remote: document.getElementById('remoteVideo')
-  }
-  let weTalkWebRtc = new WeTalkWebRtc(window["kurentoClient"], window["kurentoUtils"], eCfg);
-  console.log(weTalkWebRtc);
+  //let eCfg: ElementsCfg = {
+  //  local: document.getElementById('localVideo'),
+  //  remote: document.getElementById('remoteVideo')
+  //}
+  //let weTalkWebRtc = new WeTalkWebRtc(window["kurentoClient"], window["kurentoUtils"], eCfg);
+  //weTalkWebRtc.startConnection(null);
 }
 
 let _id = {
@@ -38,8 +38,10 @@ class WeTalkWebRtc {
 
   connectionConfig: ConnectionCfg;
 
-  webRtCPeer: any;
+  webRtcPeer: any;
+  webRtcEntryPoint: any;
   pipeline: any;
+  recorder: any;
 
   videoElements: ElementsCfg;
 
@@ -62,9 +64,31 @@ class WeTalkWebRtc {
   startConnection(sessionId: string) {
     this.sessionId = sessionId;
 
+    // http://doc-kurento.readthedocs.io/en/stable/mastering/kurento_utils_js.html
+    // Creates RTCPeerConnection, invokes getUserMedia, but NO connection YET  
+    this.webRtcPeer = kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(this.connectionConfig, function (error) {
+      if (error) return this.onError(error)
+
+      // SDP generated, handled in callback
+      this.generateOffer(this.onOffer)
+    });
   }
 
   endConnection(sessionId: string) {
+    if (this.webRtcPeer) {
+      this.webRtcPeer.dispose();
+      this.webRtcPeer = null;
+    }
+
+    if (this.pipeline) {
+      this.pipeline.release();
+      this.pipeline = null;
+    }
+
+    if (this.recorder) {
+      this.recorder.stop();
+      this.recorder = null;
+    }
   }
 
   blockLocalAudio() {
@@ -79,7 +103,96 @@ class WeTalkWebRtc {
   getStats() {
   }
 
+  startRecording() {
+  }
 
+  endRecording() {
+  }
+
+  setIceCandidateCallbacks(onerror) {
+    this.webRtcPeer.on('icecandidate', function (candidate) {
+      console.log("Local candidate:", candidate);
+
+      candidate = kurentoClient.register.complexTypes.IceCandidate(candidate);
+
+      this.webRtcEntryPoint.addIceCandidate(candidate, onerror)
+    });
+
+    this.webRtcEntryPoint.on('OnIceCandidate', function (event) {
+      var candidate = event.candidate;
+
+      console.log("Remote candidate:", candidate);
+
+      this.webRtcPeer.addIceCandidate(candidate, onerror);
+    });
+  }
+
+  onError(error) {
+    if (error) {
+      console.error(error);
+      this.endConnection(null);
+    }
+  }
+
+  onOffer(error, sdpOffer) {
+    if (error) return this.onError(error)
+
+    //http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-client-js/module-kurentoClient.KurentoClient.html
+    // Creates connection to Kurento Media Server
+    kurentoClient(args.wsUri, function (error, client) {
+      if (error) return this.onError(error);
+
+      // http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-client-js/module-core.MediaPipeline.html
+      // The AV manager object, controlling what happens on Server
+      client.create("MediaPipeline", function (error, _pipeline) {
+        if (error) return this.onError(error);
+
+       this.pipeline = _pipeline;
+
+        var elements =
+          [
+            { type: 'RecorderEndpoint', params: { uri: args.fileUri } },
+            { type: 'WebRtcEndpoint', params: {} }
+          ]
+
+        // http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-client-js/module-elements.WebRtcEndpoint.html
+        // Add enpoint for the user
+        this.pipeline.create(elements, function (error, elements) {
+          if (error) return this.onError(error);
+
+          let recorder = elements[0];
+          let webRtc = elements[1];
+
+          this.setIceCandidateCallbacks(this.onError);
+
+          webRtc.processOffer(sdpOffer, function (error, sdpAnswer) {
+            if (error) return this.onError(error);
+
+            this.webRtcPeer.processAnswer(sdpAnswer, this.onError);
+          });
+          webRtc.gatherCandidates(this.onError);
+
+          client.connect(webRtc, webRtc, recorder, function (error) {
+            if (error) return this.onError(error);
+
+            console.log("Loopback established");
+
+            recorder.record(function (error) {
+              if (error) return this.onError(error);
+
+              console.log("Recording");
+              setTimeout(() => {
+                recorder.stop();
+                console.log("Recording stopped");
+              }, 60000);
+            });
+          });
+        });
+
+
+      });
+    });
+  }
 }
 //http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-client-js/index.html
 let kurentoClient: any = window["kurentoClient"];
@@ -90,7 +203,7 @@ let kurentoUtils: any = window["kurentoUtils"];
 var args = {
   wsUri: 'wss://kurento.applicloud.com:8433/kurento',
   //ws_uri: 'wss://nope.com/kurento',
-  fileUri: 'file:///tmp/tomasRecord.webm',
+  fileUri: 'file:///tmp/tomasRecord',
   iceServers: null
 };
 
@@ -161,14 +274,16 @@ function load() {
 
         pipeline = _pipeline;
 
+        var recordFileName = args.fileUri + new Date().getTime().toString() + ".webm";
+        console.log(recordFileName);
         var elements =
           [
-            { type: 'RecorderEndpoint', params: { uri: args.fileUri } },
+            { type: 'RecorderEndpoint', params: { uri: recordFileName } },
             { type: 'WebRtcEndpoint', params: {} }
           ]
 
         // http://doc-kurento.readthedocs.io/en/stable/_static/langdoc/jsdoc/kurento-client-js/module-elements.WebRtcEndpoint.html
-        // Add enpoint for the user
+        // Add endpoint for the user to the PIPELINE
         pipeline.create(elements, function (error, elements) {
           if (error) return onError(error);
 
@@ -196,7 +311,7 @@ function load() {
               setTimeout(() => {
                 recorder.stop();
                 console.log("Recording stopped");
-              }, 60000);
+              }, 300000);
             });
           });
         });
